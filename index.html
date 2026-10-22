@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#10120f">
+  <title>LAST LIGHT // Site 09</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    :root {
+      color-scheme: dark;
+      --ink: #f1f0e6;
+      --muted: #9b9e91;
+      --acid: #c7e36a;
+      --rust: #f06448;
+      --panel: rgba(16, 19, 16, .84);
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; background: #10120f; color: var(--ink); }
+    body { user-select: none; -webkit-user-select: none; }
+    #game { display: block; width: 100%; height: 100%; touch-action: none; }
+    #game { position: fixed; inset: 0; z-index: 0; opacity: 0; }
+    #world3d { position: fixed; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; pointer-events: none; }
+    .grain, .vignette { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+    .grain { opacity: .07; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.91' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.38'/%3E%3C/svg%3E"); }
+    .vignette { background: radial-gradient(ellipse at center, transparent 38%, rgba(0,0,0,.55) 100%); }
+    .hud { position: fixed; inset: 0; z-index: 3; pointer-events: none; display: none; }
+    .topline { position: absolute; top: 24px; left: 30px; right: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .brand { font: 800 20px/1 'Barlow Condensed', Impact, sans-serif; letter-spacing: 2px; }
+    .brand small { display: block; margin-top: 6px; color: var(--muted); font: 500 9px/1 'IBM Plex Mono', monospace; letter-spacing: 2px; }
+    .wavebox { text-align: right; }
+    .wavebox span { display: block; color: var(--muted); font-size: 9px; letter-spacing: 2px; }
+    .wavebox strong { font: 800 36px/.9 'Barlow Condensed', Impact, sans-serif; }
+    .wavebox em { color: var(--acid); font: normal 11px 'IBM Plex Mono', monospace; margin-left: 7px; }
+    .leftread { position: absolute; left: 30px; bottom: 31px; }
+    .points { color: var(--acid); font: 700 26px/1 'Barlow Condensed', Impact, sans-serif; }
+    .points-label { color: var(--muted); font-size: 9px; letter-spacing: 2px; margin-top: 5px; }
+    .health { display: flex; gap: 4px; margin-top: 13px; }
+    .health i { width: 25px; height: 5px; background: #373b32; display: block; transform: skewX(-22deg); }
+    .health i.on { background: var(--rust); }
+    .rightread { position: absolute; right: 30px; bottom: 29px; text-align: right; }
+    .ammo { font: 800 35px/.85 'Barlow Condensed', Impact, sans-serif; }
+    .ammo small { color: var(--muted); font: 500 13px 'IBM Plex Mono', monospace; }
+    .gunname { color: var(--muted); font-size: 9px; letter-spacing: 1.5px; margin-top: 7px; }
+    .crosshair { position: absolute; left: 50%; top: 50%; width: 24px; height: 24px; transform: translate(-50%,-50%); opacity: .85; }
+    .crosshair::before, .crosshair::after { content: ''; position: absolute; background: rgba(241,240,230,.85); }
+    .crosshair::before { width: 1px; height: 15px; left: 11px; top: 4px; }
+    .crosshair::after { width: 15px; height: 1px; left: 4px; top: 11px; }
+    .hud.aiming .crosshair { opacity: 0; }
+    .prompt { position: absolute; left: 50%; bottom: 19%; transform: translateX(-50%); color: var(--ink); background: rgba(12,14,12,.8); border-left: 2px solid var(--acid); padding: 9px 13px; font-size: 10px; letter-spacing: .6px; white-space: nowrap; opacity: 0; transition: opacity .12s; }
+    .prompt.show { opacity: 1; }
+    .toast { position: absolute; left: 50%; top: 20%; transform: translateX(-50%); font: 700 14px 'Barlow Condensed', Impact, sans-serif; letter-spacing: 2px; text-align: center; color: var(--acid); text-shadow: 0 2px 10px #000; opacity: 0; transition: opacity .2s; }
+    .toast.show { opacity: 1; }
+    .objective { position: absolute; left: 30px; top: 91px; color: rgba(241,240,230,.62); font-size: 9px; letter-spacing: .5px; }
+    .overlay { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background: linear-gradient(100deg, rgba(9,12,10,.96) 0%, rgba(13,17,14,.78) 53%, rgba(9,12,10,.35) 100%); transition: opacity .3s; }
+    .overlay.hidden { opacity: 0; pointer-events: none; }
+    .intro { width: min(860px, calc(100% - 44px)); margin-left: 0; }
+    .eyebrow { color: var(--acid); font-size: 10px; letter-spacing: 3px; margin-bottom: 20px; }
+    h1 { margin: 0; font: 900 clamp(64px, 11vw, 124px)/.76 'Barlow Condensed', Impact, sans-serif; letter-spacing: -1px; }
+    h1 span { color: var(--rust); display: block; }
+    .intro p { max-width: 520px; color: #b9bcb0; font-size: 11px; line-height: 1.8; margin: 24px 0 20px; }
+    .map-heading { color: var(--muted); font-size: 9px; letter-spacing: 2px; margin: 18px 0 8px; }
+    .map-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-width: 700px; }
+    .map-choice { display: grid; grid-template-columns: 82px 1fr; align-items: center; gap: 12px; min-height: 76px; padding: 8px; text-align: left; background: rgba(20,24,20,.72); border: 1px solid #41463d; cursor: pointer; }
+    .map-choice.selected { border-color: var(--acid); background: rgba(56,67,38,.56); }
+    .map-choice strong { display: block; font: 800 16px/1 'Barlow Condensed', Impact, sans-serif; letter-spacing: .5px; }
+    .map-choice small { display: block; color: var(--muted); font-size: 8px; line-height: 1.5; margin-top: 5px; }
+    .map-preview { display: block; height: 54px; border: 1px solid rgba(229,226,204,.26); background-color: #202720; background-size: 100% 100%; }
+    .preview-bunker { background-image: linear-gradient(90deg, transparent 32%, #858779 32% 35%, transparent 35% 65%, #858779 65% 68%, transparent 68%), linear-gradient(0deg, transparent 45%, #b28c52 45% 53%, transparent 53%); }
+    .preview-ward { background-image: linear-gradient(0deg, transparent 30%, #879088 30% 34%, transparent 34% 66%, #879088 66% 70%, transparent 70%), linear-gradient(90deg, transparent 48%, #b28c52 48% 53%, transparent 53%); }
+    .preview-mire { background-image: repeating-linear-gradient(135deg, transparent 0 9px, rgba(154,176,127,.45) 10px 13px, transparent 14px 23px), linear-gradient(90deg, #253329, #343b2b); }
+    .preview-foundry { background-image: linear-gradient(90deg, transparent 17%, #99917d 17% 22%, transparent 22% 42%, #99917d 42% 47%, transparent 47% 73%, #99917d 73% 78%, transparent 78%), linear-gradient(0deg, transparent 46%, #bb7441 46% 52%, transparent 52%); }
+    .menu-screen { display: none; width: min(900px, calc(100% - 36px)); max-height: 92vh; overflow: auto; padding: 24px; background: rgba(10,13,11,.88); border: 1px solid rgba(208,214,194,.2); }
+    .menu-screen.active { display: block; }
+    .menu-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    .menu-button, .tool-button { min-height: 42px; padding: 0 16px; color: var(--ink); border: 1px solid #62695c; background: #20251f; cursor: pointer; }
+    .menu-button.primary, .tool-button.selected { color: #11140f; background: var(--acid); border-color: var(--acid); }
+    .menu-button:hover, .tool-button:hover { border-color: var(--acid); }
+    .menu-row { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 14px 0; }
+    .menu-field { display: grid; gap: 5px; min-width: 190px; color: var(--muted); font-size: 9px; letter-spacing: 1px; }
+    .menu-field input { min-height: 40px; padding: 0 10px; color: var(--ink); background: #151915; border: 1px solid #51594d; font: 12px 'IBM Plex Mono', monospace; }
+    .menu-status { min-height: 20px; margin: 10px 0; color: var(--acid); font-size: 10px; }
+    .editor-layout { display: grid; grid-template-columns: minmax(0,1fr) 170px; gap: 14px; align-items: start; }
+    .editor-tools { display: grid; gap: 7px; }
+    .map-editor-scroll { overflow: auto; border: 1px solid #42483e; background: #121611; touch-action: none; }
+    #mapEditorGrid { display: grid; grid-template-columns: repeat(24, minmax(12px, 1fr)); width: min(68vw, 720px); min-width: 420px; aspect-ratio: 4 / 3; }
+    .map-cell { min-width: 0; min-height: 0; padding: 0; border: 1px solid rgba(5,8,6,.45); background: #77766c; }
+    .map-cell.wall { background: #343d36; }
+    .map-cell.door { background: #bd9458; }
+    .map-cell.barrier { background: #765138; }
+    .map-cell.spawn { outline: 2px solid #d8ed87; outline-offset: -2px; }
+    .editor-note { color: var(--muted); font-size: 9px; line-height: 1.6; }
+    .start { display: flex; align-items: center; gap: 18px; }
+    button { color: inherit; font: inherit; }
+    #start { border: 0; background: var(--acid); color: #10120f; padding: 14px 21px; min-width: 150px; text-align: left; font: 800 16px 'Barlow Condensed', Impact, sans-serif; letter-spacing: 1px; cursor: pointer; }
+    #start:hover { background: #e0f896; }
+    .subhint { color: #878c80; font-size: 9px; line-height: 1.7; }
+    .corner { position: absolute; right: 30px; bottom: 26px; text-align: right; color: #767d70; font-size: 9px; line-height: 1.8; letter-spacing: 1px; }
+    .touch-controls { display: none; position: fixed; z-index: 4; inset: auto 15px 18px; justify-content: space-between; align-items: end; pointer-events: none; }
+    .pad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(2, 42px); gap: 4px; pointer-events: auto; }
+    .pad button, .touch-actions button { background: rgba(17,20,16,.74); border: 1px solid rgba(241,240,230,.3); color: var(--ink); min-width: 42px; min-height: 42px; font-size: 15px; }
+    .pad .up { grid-column: 2; }.pad .left { grid-column: 1; grid-row: 2; }.pad .down { grid-column: 2; grid-row: 2; }.pad .right { grid-column: 3; grid-row: 2; }
+    .touch-actions { display: flex; gap: 5px; pointer-events: auto; align-items: end; }
+    .touch-actions button { font-size: 9px; font-weight: 600; padding: 0 8px; }
+    .touch-actions .fire { height: 59px; width: 59px; border-radius: 50%; border-color: var(--rust); color: var(--rust); font-size: 10px; }
+      @media (pointer: coarse) { .touch-actions { gap: 2px; } .touch-actions button { min-width: 32px; padding: 0 3px; font-size: 8px; } .touch-actions .fire { min-width: 48px; width: 48px; height: 48px; } }
+    @media (pointer: coarse) { .touch-controls { display: flex; } .topline { top: 15px; left: 17px; right: 17px; } .leftread { left: 18px; bottom: 135px; } .rightread { right: 18px; bottom: 135px; } .objective { left: 18px; top: 75px; } .corner { display:none; } }
+    @media (max-width: 680px) { .menu-screen { padding: 16px; } .editor-layout { grid-template-columns: 1fr; } .editor-tools { grid-template-columns: repeat(2,minmax(0,1fr)); } #mapEditorGrid { width: 100%; min-width: 480px; } .map-editor-scroll { max-height: 56vh; } }
+    @media (max-width: 560px) { .intro { margin: 0; } .intro p { max-width: 310px; } .map-grid { grid-template-columns: 1fr; max-height: 42vh; overflow-y: auto; } .map-choice { min-height: 62px; grid-template-columns: 72px 1fr; } .map-preview { height: 44px; } .topline .brand { font-size: 17px; } .wavebox strong { font-size: 30px; } .prompt { bottom: 30%; max-width: 90vw; white-space: normal; text-align: center; } }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="First-person survival game"></canvas>
+  <canvas id="world3d" aria-hidden="true"></canvas>
+  <div class="grain"></div><div class="vignette"></div>
+  <div class="hud" id="hud">
+    <div class="topline"><div class="brand">LAST LIGHT<small>SITE 09 / QUARANTINE ZONE</small></div><div class="wavebox"><span>THREAT LEVEL</span><strong id="round">01</strong><em id="remaining">5 HOSTILES</em></div></div>
+    <div class="objective" id="objective">RESTORE FACILITY POWER</div>
+    <div class="crosshair"></div><div class="prompt" id="prompt"></div><div class="toast" id="toast"></div>
+    <div class="leftread"><div class="points" id="points">500</div><div class="points-label">SALVAGE</div><div class="health" id="health"></div></div>
+    <div class="rightread"><div class="ammo" id="ammo">14 <small>/ 112</small></div><div class="gunname" id="gunname">DUAL M1911</div></div>
+  </div>
+  <div class="touch-controls" id="touchControls">
+    <div class="pad"><button class="up" data-move="forward">▲</button><button class="left" data-move="left">◀</button><button class="down" data-move="back">▼</button><button class="right" data-move="right">▶</button></div>
+    <div class="touch-actions"><button data-action="use">USE</button><button data-action="reload">RELOAD</button><button data-action="next">NEXT</button><button data-action="ads">ADS</button><button class="fire" data-action="fire">FIRE</button></div>
+  </div>
+  <div class="overlay" id="overlay">
+    <section class="menu-screen active" id="titleScreen">
+      <div class="eyebrow">FIELD RECORDING 09.17 / 02:14 AM</div><h1>LAST<span>LIGHT</span></h1>
+      <p>Containment failed. Select a deployment mode.</p>
+      <div class="menu-actions"><button class="menu-button primary" data-nav="single">SINGLE PLAYER</button><button class="menu-button" data-nav="lan">LAN</button><button class="menu-button" data-nav="editor">MAP MAKER</button></div>
+    </section>
+    <section class="menu-screen" id="mapScreen">
+      <div class="eyebrow">SINGLE PLAYER / DEPLOYMENT</div><h1>SELECT<span>SITE</span></h1>
+      <div class="map-heading">OPERATIONS</div><div class="map-grid" role="group" aria-label="Select a map">
+        <button class="map-choice selected" type="button" data-map="bunker" aria-pressed="true"><span class="map-preview preview-bunker"></span><span><strong>BLACKSITE BUNKER</strong><small>Concrete corridors / sealed wings</small></span></button>
+        <button class="map-choice" type="button" data-map="ward" aria-pressed="false"><span class="map-preview preview-ward"></span><span><strong>NORTH WARD</strong><small>Partitioned treatment rooms</small></span></button>
+        <button class="map-choice" type="button" data-map="mire" aria-pressed="false"><span class="map-preview preview-mire"></span><span><strong>FENLINE CAMP</strong><small>Flooded outpost / timber cover</small></span></button>
+        <button class="map-choice" type="button" data-map="foundry" aria-pressed="false"><span class="map-preview preview-foundry"></span><span><strong>IRON FOUNDRY</strong><small>Furnace hall / machine aisles</small></span></button>
+        <button class="map-choice" id="customMapChoice" type="button" data-map="custom" aria-pressed="false" disabled><span class="map-preview preview-bunker"></span><span><strong id="customMapLabel">CUSTOM SITE</strong><small>Build a site in Map Maker</small></span></button>
+      </div>
+      <div class="menu-actions"><button class="menu-button" data-nav="title">BACK</button><button class="menu-button" data-nav="editor">EDIT MAP</button><button class="menu-button primary" id="start">DEPLOY ↗</button></div>
+      <div class="subhint">WASD MOVE · MOUSE LOOK · CLICK FIRE · E USE · R RELOAD</div>
+    </section>
+    <section class="menu-screen" id="lanScreen">
+      <div class="eyebrow">LOCAL NETWORK / UP TO FOUR PLAYERS</div><h1>LAN<span>DEPLOYMENT</span></h1>
+      <div class="menu-row"><label class="menu-field">SERVER ADDRESS<input id="lanServerAddress" value="localhost:4174" autocomplete="url"></label><button class="menu-button" id="lanHost">HOST ROOM</button></div>
+      <div class="menu-row"><label class="menu-field">ROOM CODE<input id="lanRoomCode" placeholder="Enter host code" maxlength="8"></label><button class="menu-button primary" id="lanJoin">JOIN ROOM</button></div>
+      <div class="menu-status" id="lanStatus" aria-live="polite">Host a room or enter a room code.</div>
+      <div id="lanRoster" class="editor-note"></div>
+      <div class="menu-actions"><button class="menu-button" data-nav="title">BACK</button><button class="menu-button" id="lanLaunch" hidden>DEPLOY TEAM</button></div>
+    </section>
+    <section class="menu-screen" id="editorScreen">
+      <div class="eyebrow">SITE WORKSHOP / 24 × 18 GRID</div><h1>MAP<span>MAKER</span></h1>
+      <div class="menu-row"><label class="menu-field">SITE NAME<input id="editorName" maxlength="24" value="MY CUSTOM SITE"></label></div>
+      <div class="editor-layout"><div class="map-editor-scroll"><div id="mapEditorGrid" aria-label="Tile map editor"></div></div>
+        <div class="editor-tools"><button class="tool-button selected" data-editor-tool="wall">WALL</button><button class="tool-button" data-editor-tool="floor">ERASE</button><button class="tool-button" data-editor-tool="barrier">BARRICADE</button><button class="tool-button" data-editor-tool="spawn">SET SPAWN</button><div class="editor-note">Door tiles and service stations are reserved. Drag across tiles to paint.</div></div>
+      </div>
+      <div class="menu-actions"><button class="menu-button" data-nav="title">CANCEL</button><button class="menu-button primary" id="saveMap">SAVE CUSTOM SITE</button></div>
+      <div class="menu-status" id="editorStatus" aria-live="polite"></div>
+    </section>
+    <div class="corner">SITE 09 / CONTAINMENT STATUS: FAILED</div>
+  </div>
+    <script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js"}}</script>
+  <script>
+    (() => {
+      'use strict';
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d', { alpha: false });
+      const hud = document.getElementById('hud');
+      const overlay = document.getElementById('overlay');
+      const promptEl = document.getElementById('prompt');
+      const toastEl = document.getElementById('toast');
+      const keys = new Set();
+      const FOV = Math.PI / 3;
+      const MAP_LAYOUTS = {
+        bunker: [[12,5],[20,12],[2,3]],
+        ward: [[3,3],[3,4],[3,5],[3,6],[3,7],[3,9],[3,10],[5,4],[11,3],[11,4],[11,5],[14,10],[14,11],[14,12],[19,4],[19,5],[19,6]],
+        mire: [[2,5],[3,5],[4,5],[4,6],[5,6],[10,3],[10,4],[14,4],[15,4],[11,11],[12,11],[13,11],[18,10],[19,10],[20,10],[2,3]],
+        foundry: [[2,4],[2,5],[2,6],[6,10],[6,11],[6,12],[11,4],[11,5],[11,6],[14,4],[14,5],[18,3],[18,4],[18,5],[21,11],[21,12]]
+      };
+      const MAP_WIDTH = 24, MAP_HEIGHT = 18;
+      const RESERVED_TILES = new Set(['8,8','16,8','2,3','2,8','5,1','5,14','1,1','6,5','9,1','13,5','9,14','19,1','19,14','12,8','13,1','13,14','14,7','3,14','13,12','20,3','20,14','18,7','6,14']);
+      function readCustomMap() {
+        try {
+          const saved=JSON.parse(localStorage.getItem('lastLight.customMap')||'null');
+          if(saved?.grid?.length===MAP_HEIGHT&&saved.grid.every(row=>row.length===MAP_WIDTH)) return saved;
+        } catch {}
+        return null;
+      }
+      let customMap=readCustomMap();
+      function createMapGrid(layoutId) {
+        if(layoutId==='custom'&&customMap) return customMap.grid.map(row=>row.slice());
+        const grid = Array.from({ length: 18 }, (_, y) => Array.from({ length: 24 }, (_, x) => {
+          if (x === 0 || y === 0 || x === 23 || y === 17) return 1;
+          if ((x === 8 || x === 16) && y === 8) return 2;
+          if (x === 8 || x === 16) return 1;
+          return 0;
+        }));
+        for (const [x,y] of MAP_LAYOUTS[layoutId] || MAP_LAYOUTS.bunker) {
+          if (grid[y]?.[x] === 0) grid[y][x] = 1;
+        }
+        return grid;
+      }
+      let selectedMapId = 'bunker';
+      const map = createMapGrid(selectedMapId);
+      let editorGrid=customMap?customMap.grid.map(row=>row.slice()):createMapGrid('bunker');
+      let editorSpawn=customMap?.spawn||{x:4.1,y:6.4};
+      let editorTool='wall';
+      let editorPainting=false;
+      let lanSocket=null,lanRole=null,lanRoomCode='',lanPeerId='',lanHostId='',lanPeers=new Map(),remotePlayers=new Map();
+      let lanStateTimer=0;
+      const doors = [
+        { x: 8.5, y: 8.5, mapX: 8, mapY: 8, cost: 800, open: false },
+        { x: 16.5, y: 8.5, mapX: 16, mapY: 8, cost: 1500, open: false }
+      ];
+      const barrier = { x: 2.5, y: 3.5, health: 6, max: 6, nextRepair: 0 };
+      const player = { x: 4.1, y: 6.4, angle: .45, pitch: 0, health: 5, maxHealth: 5, points: 500, speed: 2.65, hitAt: 0 };
+      const guns = [
+        { name: 'M1 GARAND', style: 'garand', mag: 8, reserve: 48, capacity: 8, damage: 135, fireRate: 470, reload: 1.35, cost: 0, spread: .018, kick: 18 },
+        { name: 'KAR98K', style: 'bolt', mag: 5, reserve: 40, capacity: 5, damage: 190, fireRate: 850, reload: 1.55, cost: 800, spread: .012, kick: 24 },
+        { name: 'THOMPSON', style: 'thompson', mag: 30, reserve: 120, capacity: 30, damage: 58, fireRate: 105, reload: 1.3, cost: 1100, spread: .045, kick: 8 },
+        { name: 'MP40', style: 'mp40', mag: 32, reserve: 128, capacity: 32, damage: 54, fireRate: 115, reload: 1.25, cost: 950, spread: .04, kick: 8 },
+        { name: 'GEWEHR 43', style: 'gewehr', mag: 10, reserve: 60, capacity: 10, damage: 115, fireRate: 330, reload: 1.35, cost: 1250, spread: .022, kick: 14 },
+        { name: 'M1897 TRENCH GUN', style: 'shotgun', mag: 6, reserve: 36, capacity: 6, damage: 175, fireRate: 680, reload: 1.6, cost: 1400, spread: .13, kick: 25 },
+        { name: 'PPSH-41', style: 'ppsh', mag: 71, reserve: 213, capacity: 71, damage: 48, fireRate: 72, reload: 1.8, cost: 1600, spread: .065, kick: 6 },
+        { name: 'STG-44', style: 'stg', mag: 30, reserve: 120, capacity: 30, damage: 78, fireRate: 125, reload: 1.4, cost: 1800, spread: .032, kick: 9 },
+        { name: 'BAR', style: 'bar', mag: 20, reserve: 100, capacity: 20, damage: 105, fireRate: 180, reload: 1.7, cost: 2000, spread: .03, kick: 14 },
+        { name: 'MOSIN-NAGANT', style: 'bolt', mag: 5, reserve: 40, capacity: 5, damage: 190, fireRate: 820, reload: 1.6, cost: 900, spread: .012, kick: 24 },
+        { name: 'SPRINGFIELD', style: 'scoped', mag: 5, reserve: 35, capacity: 5, damage: 220, fireRate: 950, reload: 1.65, cost: 1250, spread: .008, kick: 28 },
+        { name: 'ARISAKA', style: 'arisaka', mag: 5, reserve: 40, capacity: 5, damage: 185, fireRate: 820, reload: 1.55, cost: 950, spread: .013, kick: 23 },
+        { name: 'M1A1 CARBINE', style: 'carbine', mag: 15, reserve: 90, capacity: 15, damage: 92, fireRate: 230, reload: 1.2, cost: 1050, spread: .025, kick: 10 },
+        { name: 'FG42', style: 'fg42', mag: 20, reserve: 100, capacity: 20, damage: 82, fireRate: 115, reload: 1.45, cost: 1750, spread: .035, kick: 11 },
+        { name: 'TYPE 100', style: 'type100', mag: 30, reserve: 120, capacity: 30, damage: 56, fireRate: 120, reload: 1.35, cost: 1150, spread: .04, kick: 8 },
+        { name: 'DOUBLE-BARREL', style: 'double', mag: 2, reserve: 24, capacity: 2, damage: 230, fireRate: 780, reload: 1.75, cost: 1550, spread: .16, kick: 30 },
+        { name: 'DP-28', style: 'dp', mag: 47, reserve: 141, capacity: 47, damage: 68, fireRate: 105, reload: 1.85, cost: 1800, spread: .05, kick: 13 },
+        { name: 'MG42', style: 'mg42', mag: 100, reserve: 200, capacity: 100, damage: 52, fireRate: 65, reload: 2, cost: 2200, spread: .07, kick: 8 },
+        { name: 'BROWNING M1919', style: 'browning', mag: 50, reserve: 150, capacity: 50, damage: 75, fireRate: 95, reload: 1.9, cost: 2100, spread: .045, kick: 10 },
+        { name: 'TYPE 99', style: 'arisaka', mag: 5, reserve: 40, capacity: 5, damage: 180, fireRate: 800, reload: 1.55, cost: 1050, spread: .014, kick: 22 },
+        { name: 'PTRS-41', style: 'ptrs', mag: 5, reserve: 30, capacity: 5, damage: 260, fireRate: 1100, reload: 1.9, cost: 2300, spread: .006, kick: 34 },
+        { name: 'M1911', style: 'pistol', mag: 14, reserve: 112, capacity: 14, damage: 95, fireRate: 220, reload: 1.25, cost: 0, spread: .025, kick: 12 },
+        { name: 'WALTHER P38', style: 'pistol', mag: 8, reserve: 64, capacity: 8, damage: 88, fireRate: 205, reload: 1, cost: 700, spread: .03, kick: 11 },
+        { name: 'M2 FLAMETHROWER', style: 'flame', mag: 100, reserve: 300, capacity: 100, damage: 18, fireRate: 45, reload: 2.2, cost: 2500, spread: .16, kick: 4 },
+        { name: 'BAZOOKA', style: 'launcher', mag: 1, reserve: 8, capacity: 1, damage: 300, fireRate: 900, reload: 1.8, cost: 2200, spread: .02, kick: 36 }
+      ];
+      let gunIndex = 21;
+      let ownedGuns = new Set([21]);
+      let perkSet = new Set();
+      let powerOn = false;
+      let shotSide = 0;
+      let round = 1;
+      let zombies = [];
+      let spawnLeft = 5;
+      let spawnClock = 1.3;
+      let roundPause = 0;
+      let gameStarted = false;
+      let gameOver = false;
+      let lastFrame = performance.now();
+      let shotAt = 0;
+      let recoil = 0;
+      let muzzle = 0;
+      let aimAmount = 0;
+      let damageFlash = 0;
+      let toastTimer = 0;
+      let reloadUntil = 0;
+      let reloadStartedAt = 0;
+      let reloadDuration = 0;
+      let mouseDown = false;
+      let rightAim = false;
+      let aimToggle = false;
+      let audioContext = null;
+      let switchStartedAt = 0;
+      let movementAmount = 0;
+      let width = 0, height = 0, zBuffer = [];
+      const stations = [
+        { kind: 'weapon', x: 2.6, y: 8.7, label: 'WALL RACK', index: 1, options: [1, 9, 10] },
+        { kind: 'weapon', x: 5.8, y: 2.1, label: 'WALL RACK', index: 2, options: [2, 3, 14] },
+        { kind: 'weapon', x: 5.8, y: 15.2, label: 'WALL RACK', index: 4, options: [4, 12, 13] },
+        { kind: 'weapon', x: 2.2, y: 1.8, label: 'WALL RACK', index: 5, options: [5, 15] },
+        { kind: 'weapon', x: 6.4, y: 5.1, label: 'WALL RACK', index: 6, options: [6, 7, 8] },
+        { kind: 'weapon', x: 10.2, y: 2.1, label: 'WALL RACK', index: 16, options: [16, 17, 18] },
+        { kind: 'weapon', x: 14.2, y: 5.1, label: 'WALL RACK', index: 11, options: [11, 19, 20] },
+        { kind: 'weapon', x: 10.3, y: 15.2, label: 'WALL RACK', index: 21, options: [21, 22, 23, 24] },
+        { kind: 'weapon', x: 20.2, y: 2.1, label: 'WALL RACK', index: 2, options: [2, 9, 10, 12] },
+        { kind: 'weapon', x: 20.5, y: 15.2, label: 'WALL RACK', index: 16, options: [13, 16, 17, 18, 20] },
+        { kind: 'box', x: 12.5, y: 8.5, label: 'MYSTERY BOX', cost: 950, active: true, rolling: false, availableAt: 0 },
+        { kind: 'perk', x: 13.1, y: 1.8, label: 'IRON LUNG', id: 'lung', cost: 900, color: '#c7e36a' },
+        { kind: 'perk', x: 13.1, y: 15.2, label: 'QUICK HANDS', id: 'hands', cost: 1000, color: '#f06448' },
+        { kind: 'perk', x: 14.3, y: 7.2, label: 'DEAD EYE', id: 'eye', cost: 1100, color: '#e8c878' },
+        { kind: 'perk', x: 3.2, y: 14.6, label: 'JUGGERNOG', id: 'juggernog', cost: 1500, color: '#ed6653' },
+        { kind: 'perk', x: 13.4, y: 12.5, label: 'QUICK REVIVE', id: 'revive', cost: 1200, color: '#63c8c2' },
+        { kind: 'perk', x: 20.7, y: 3.3, label: 'SPEED COLA', id: 'speedcola', cost: 1400, color: '#d8df57' },
+        { kind: 'perk', x: 20.7, y: 14.5, label: 'DOUBLE TAP', id: 'doubletap', cost: 1700, color: '#d3a8e8' },
+        { kind: 'perk', x: 18.7, y: 7.2, label: 'STAMIN-UP', id: 'staminup', cost: 1300, color: '#77d978' },
+        { kind: 'power', x: 6.4, y: 14.5, label: 'POWER SWITCH' }
+      ];
+      const rand = (a, b) => a + Math.random() * (b - a);
+      const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+      const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+      const currentFov = () => FOV * (1 - aimAmount * .28);
+      const pitchOffset = () => player.pitch * height / (2 * Math.tan(FOV / 2));
+      function playSound(name) {
+        if (!audioContext) return;
+        const sounds = {
+          fire: [105, 42, .11, 'sawtooth', .065], reload: [420, 180, .18, 'square', .035], ping: [1550, 1050, .16, 'sine', .04],
+          hit: [90, 38, .22, 'triangle', .09], kill: [180, 70, .15, 'sawtooth', .04],
+          buy: [440, 660, .22, 'sine', .045], perk: [520, 880, .35, 'sine', .055],
+          door: [120, 48, .7, 'sawtooth', .075], box: [130, 430, .8, 'triangle', .06],
+          reveal: [360, 760, .5, 'sine', .06], wave: [180, 330, .45, 'triangle', .05], zombie: [80, 55, .32, 'sawtooth', .025]
+        };
+        const [startHz, endHz, duration, type, volume] = sounds[name] || sounds.buy;
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = type; oscillator.frequency.setValueAtTime(startHz, now);
+        oscillator.frequency.exponentialRampToValueAtTime(Math.max(1,endHz), now + duration);
+        gain.gain.setValueAtTime(volume, now); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
+        oscillator.connect(gain); gain.connect(audioContext.destination);
+        oscillator.start(now); oscillator.stop(now + duration);
+      }
+      function equipWeapon(index) {
+        gunIndex = index; switchStartedAt = performance.now(); recoil = 8;
+      }
+      function resize() {
+        const dpr = Math.min(devicePixelRatio || 1, 1.5);
+        width = canvas.width = Math.floor(innerWidth * dpr);
+        height = canvas.height = Math.floor(innerHeight * dpr);
+        canvas.style.width = innerWidth + 'px'; canvas.style.height = innerHeight + 'px';
+      }
+      addEventListener('resize', resize); resize();
+      function tile(x, y) {
+        const ix = Math.floor(x), iy = Math.floor(y);
+        if (!map[iy] || map[iy][ix] === undefined) return 1;
+        return map[iy][ix];
+      }
+      function solid(x, y) { const v = tile(x, y); return v === 1 || v === 2 || (v === 3 && barrier.health > 0); }
+      function canOccupy(x, y, radius = .22) {
+        return !solid(x - radius, y - radius) && !solid(x + radius, y - radius) && !solid(x - radius, y + radius) && !solid(x + radius, y + radius);
+      }
+      function moveEntity(entity, dx, dy, radius = .22) {
+        if (canOccupy(entity.x + dx, entity.y, radius)) entity.x += dx;
+        if (canOccupy(entity.x, entity.y + dy, radius)) entity.y += dy;
+      }
+      function rayDistance(angle, max = 20) {
+        const rx = Math.cos(angle), ry = Math.sin(angle);
+        let mapX = Math.floor(player.x), mapY = Math.floor(player.y);
+        const deltaX = Math.abs(1 / (rx || 1e-9)), deltaY = Math.abs(1 / (ry || 1e-9));
+        const stepX = rx < 0 ? -1 : 1, stepY = ry < 0 ? -1 : 1;
+        let sideX = (rx < 0 ? player.x - mapX : mapX + 1 - player.x) * deltaX;
+        let sideY = (ry < 0 ? player.y - mapY : mapY + 1 - player.y) * deltaY;
+        let side = 0, type = 1;
+        for (let i = 0; i < 80; i++) {
+          if (sideX < sideY) { sideX += deltaX; mapX += stepX; side = 0; }
+          else { sideY += deltaY; mapY += stepY; side = 1; }
+          type = map[mapY]?.[mapX] ?? 1;
+          if (type === 1 || type === 2 || (type === 3 && barrier.health > 0)) {
+            return { distance: Math.min(side === 0 ? sideX - deltaX : sideY - deltaY, max), side, type, mapX, mapY, wallX: side === 0 ? player.y + (sideX - deltaX) * ry : player.x + (sideY - deltaY) * rx };
+          }
+          if ((sideX < sideY ? sideX : sideY) > max) break;
+        }
+        return { distance: max, side: 0, type: 1, mapX, mapY, wallX: 0 };
+      }
+      function castWorld() {
+        const horizon = height * .48 + pitchOffset();
+        const ceiling = ctx.createLinearGradient(0, 0, 0, horizon);
+        ceiling.addColorStop(0, '#101613'); ceiling.addColorStop(1, '#34372c');
+        ctx.fillStyle = ceiling; ctx.fillRect(0, 0, width, horizon);
+        const floor = ctx.createLinearGradient(0, horizon, 0, height);
+        floor.addColorStop(0, '#48463a'); floor.addColorStop(.32, '#262820'); floor.addColorStop(1, '#11140f');
+        ctx.fillStyle = floor; ctx.fillRect(0, horizon, width, height - horizon);
+        const step = Math.max(1, Math.floor(width / 560));
+        zBuffer = new Float32Array(Math.ceil(width / step));
+        for (let x = 0, n = 0; x < width; x += step, n++) {
+          const camera = (2 * x / width - 1) * Math.tan(currentFov() / 2);
+          const hit = rayDistance(player.angle + Math.atan(camera));
+          const corrected = hit.distance * Math.cos(Math.atan(camera));
+          zBuffer[n] = corrected;
+          const wallHeight = Math.min(height * 1.8, height * .88 / Math.max(.12, corrected));
+          const top = horizon - wallHeight / 2;
+          let base;
+          if (hit.type === 2) base = [103, 76, 49];
+          else if (hit.type === 3) base = [86, 76, 58];
+          else base = [103, 111, 91];
+          const shade = clamp(1 - corrected / 11, .18, .95) * (hit.side ? .72 : 1);
+          const pattern = Math.floor(hit.wallX * 5) % 3 === 0 ? .83 : 1;
+          const light = shade * pattern;
+          ctx.fillStyle = `rgb(${Math.round(base[0]*light)},${Math.round(base[1]*light)},${Math.round(base[2]*light)})`;
+          ctx.fillRect(x, top, step + 1, wallHeight);
+          const line = Math.max(1, width / 800);
+          if (hit.type === 1 && Math.floor(hit.wallX * 4) % 2 === 0) {
+            ctx.fillStyle = `rgba(11,15,12,${.22 * shade})`; ctx.fillRect(x, top + wallHeight * .48, step + 1, line);
+          }
+          if (hit.type === 2) {
+            ctx.fillStyle = `rgba(29,24,18,${.4 * shade})`;
+            for (let yy = top + 8; yy < top + wallHeight; yy += Math.max(13, wallHeight / 9)) ctx.fillRect(x, yy, step + 1, line * 2);
+            if (x % Math.max(4, step * 7) < step + 1) { ctx.fillStyle = `rgba(207,164,91,${.65*shade})`; ctx.fillRect(x, top + wallHeight * .53, step + 1, line * 3); }
+          }
+          if (hit.type === 3) {
+            ctx.fillStyle = `rgba(34,25,18,${.78 * shade})`;
+            const plank = Math.max(3, wallHeight * .08);
+            for (let yy = top + wallHeight * .2; yy < top + wallHeight * .83; yy += wallHeight * .2) ctx.fillRect(x, yy, step + 1, plank);
+          }
+        }
+        drawFloorMarks(horizon);
+      }
+      function drawFloorMarks(horizon) {
+        ctx.save();
+        const depth = Math.max(1, distance(player, {x: 8,y: 6}));
+        const alpha = clamp(1.1 - depth / 10, .08, .32);
+        ctx.strokeStyle = `rgba(178,157,113,${alpha})`; ctx.lineWidth = Math.max(1, width / 1200);
+        for (let i = 1; i <= 5; i++) {
+          const y = horizon + (height - horizon) * (i / 6) ** 1.8;
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+        }
+        ctx.restore();
+      }
+      function project(entity) {
+        const dx = entity.x - player.x, dy = entity.y - player.y;
+        const angle = Math.atan2(dy, dx) - player.angle;
+        const wrapped = Math.atan2(Math.sin(angle), Math.cos(angle));
+        const depth = Math.hypot(dx, dy) * Math.cos(wrapped);
+        if (depth <= .12 || Math.abs(wrapped) > currentFov() * .75) return null;
+        const focal = width / (2 * Math.tan(currentFov() / 2));
+        return { x: width / 2 + Math.tan(wrapped) * focal, y: height * .48 + pitchOffset(), depth, scale: height / depth * .48 };
+      }
+      function drawZombie(z) {
+        const p = project(z); if (!p) return;
+        const zi = Math.round(p.x / width * zBuffer.length);
+        if (zBuffer[clamp(zi, 0, zBuffer.length - 1)] < p.depth - .16) return;
+        const s = clamp(p.scale, 2, height * .95);
+        const cx = p.x, foot = p.y + s * .45;
+        const w = s * .43, h = s * .94;
+        const hurt = performance.now() < z.hurtUntil;
+        ctx.save(); ctx.translate(cx, foot);
+        ctx.globalAlpha = clamp(1.2 - p.depth / 16, .45, 1);
+        ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(0, 0, w * .72, s * .11, 0, 0, Math.PI * 2); ctx.fill();
+        const stride = Math.sin(z.step * 9) * w * .17;
+        ctx.strokeStyle = '#25251e'; ctx.lineWidth = Math.max(2, w * .19); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-w*.22, -h*.24); ctx.lineTo(-w*.27 + stride, -s*.02); ctx.moveTo(w*.2, -h*.24); ctx.lineTo(w*.28 - stride, -s*.02); ctx.stroke();
+        ctx.fillStyle = hurt ? '#e8d9b4' : '#424b3c';
+        ctx.beginPath(); ctx.moveTo(-w*.38,-h*.68); ctx.lineTo(w*.33,-h*.7); ctx.lineTo(w*.4,-h*.29); ctx.lineTo(w*.21,-h*.23); ctx.lineTo(-w*.29,-h*.26); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#34392f'; ctx.lineWidth = Math.max(2,w*.14);
+        ctx.beginPath(); ctx.moveTo(-w*.32,-h*.61); ctx.lineTo(-w*.57,-h*.35); ctx.moveTo(w*.3,-h*.61); ctx.lineTo(w*.52,-h*.37); ctx.stroke();
+        ctx.fillStyle = hurt ? '#d7c9a8' : '#777866'; ctx.beginPath(); ctx.ellipse(0,-h*.79,w*.25,h*.17,-.08,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#d86e4d'; ctx.fillRect(-w*.13,-h*.82,w*.08,Math.max(2,h*.025)); ctx.fillRect(w*.04,-h*.82,w*.08,Math.max(2,h*.025));
+        ctx.fillStyle = 'rgba(31,32,24,.8)'; ctx.fillRect(-w*.12,-h*.67,w*.24,h*.03);
+        if (z.health < z.maxHealth) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(-w*.48,-h*1.03,w*.96,Math.max(2,s*.035)); ctx.fillStyle = '#d66e4f'; ctx.fillRect(-w*.48,-h*1.03,w*.96*clamp(z.health/z.maxHealth,0,1),Math.max(2,s*.035)); }
+        ctx.restore();
+      }
+      function drawStation(station) {
+        const p = project(station); if (!p) return;
+        const zi = Math.round(p.x / width * zBuffer.length);
+        if (zBuffer[clamp(zi, 0, zBuffer.length - 1)] < p.depth - .2) return;
+        const s = clamp(p.scale, 5, height * .7), y = p.y + s * .43;
+        ctx.save(); ctx.translate(p.x,y); ctx.globalAlpha = clamp(1 - p.depth/12,.28,.9);
+        if (station.kind === 'perk') {
+          ctx.fillStyle = '#262b22'; ctx.fillRect(-s*.24,-s*.9,s*.48,s*.9);
+          ctx.fillStyle = station.color; ctx.fillRect(-s*.18,-s*.82,s*.36,s*.06);
+          ctx.fillStyle = 'rgba(197,227,106,.22)'; ctx.fillRect(-s*.16,-s*.7,s*.32,s*.5);
+          ctx.fillStyle = station.color; ctx.beginPath(); ctx.arc(0,-s*.47,s*.09,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#111'; ctx.fillRect(-s*.16,-s*.1,s*.32,s*.1);
+        } else if (station.kind === 'box') {
+          const pulse = .55 + Math.sin(performance.now() / 170) * .16;
+          ctx.fillStyle = station.rolling ? '#7f7754' : '#4a3a25'; ctx.fillRect(-s*.4,-s*.55,s*.8,s*.55);
+          ctx.fillStyle = '#b9944e'; ctx.fillRect(-s*.43,-s*.58,s*.86,s*.1);
+          ctx.fillStyle = '#1b211c'; ctx.fillRect(-s*.31,-s*.48,s*.62,s*.31);
+          ctx.fillStyle = `rgba(110,204,201,${station.active ? pulse : .15})`; ctx.fillRect(-s*.27,-s*.44,s*.54,s*.22);
+          ctx.save(); ctx.translate(0,-s*.57); ctx.rotate(station.rolling ? Math.sin(performance.now()/90)*.32 : -.08);
+          ctx.fillStyle = '#725532'; ctx.fillRect(-s*.42,-s*.11,s*.84,s*.1); ctx.restore();
+          ctx.fillStyle = '#d3bc70'; ctx.fillRect(-s*.35,-s*.17,s*.7,s*.035);
+        } else {
+          ctx.fillStyle = '#3b3226'; ctx.fillRect(-s*.36,-s*.85,s*.72,s*.85);
+          ctx.strokeStyle = '#a48758'; ctx.lineWidth = Math.max(1,s*.025); ctx.strokeRect(-s*.36,-s*.85,s*.72,s*.85);
+          ctx.fillStyle = '#9f855b'; ctx.fillRect(-s*.25,-s*.72,s*.5,s*.08);
+          ctx.fillStyle = '#1c2019'; ctx.fillRect(-s*.3,-s*.55,s*.6,s*.48);
+          ctx.fillStyle = '#d4c08c'; ctx.fillRect(-s*.2,-s*.44,s*.4,s*.04); ctx.fillRect(-s*.12,-s*.34,s*.24,s*.04);
+        }
+        ctx.restore();
+      }
+      function drawWorldObjects() {
+        const things = [...zombies.map(z => ({...z, entity:z})), ...stations.map(s => ({...s, entity:s}))];
+        things.sort((a,b) => distance(b.entity,player)-distance(a.entity,player));
+        for (const item of things) item.kind === 'zombie' ? drawZombie(item.entity) : drawStation(item.entity);
+      }
+      function drawWeapon() {
+        const gun = guns[gunIndex];
+        const s = Math.min(width / 950, height / 600);
+        const now = performance.now();
+        const sway = Math.sin(now / 115) * s * (aimAmount ? 1 : 4) + Math.sin(now / 63) * movementAmount * s * 7;
+        const reloadProgress = reloadDuration ? clamp((now - reloadStartedAt) / reloadDuration, 0, 1) : 0;
+        const reloadDip = Math.sin(reloadProgress * Math.PI) * height * .08;
+        const switchDip = Math.sin(clamp((now-switchStartedAt)/420,0,1)*Math.PI) * height * .075;
+        const kick = recoil * s;
+        const unit = Math.min(height * .16, width * .115);
+        const sightOffset = unit * .64 * .36;
+        const length = gun.style === 'shotgun' || gun.style === 'bolt' ? 1.85 : gun.style === 'heavy' ? 1.7 : 1.5;
+        ctx.save();
+        ctx.translate(width*.73 + sway - aimAmount*(width*.23+sightOffset), height * .93 + kick + reloadDip + switchDip - aimAmount * height * .035);
+        ctx.scale(.77 * (1 - aimAmount * .08), .77 * (1 - aimAmount * .08));
+        const polygon = (points, color) => {
+          ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(points[0][0]*unit,points[0][1]*unit);
+          for (const point of points.slice(1)) ctx.lineTo(point[0]*unit,point[1]*unit);
+          ctx.closePath(); ctx.fill(); ctx.strokeStyle='#111512'; ctx.lineWidth=Math.max(1,unit*.025); ctx.lineJoin='round'; ctx.stroke();
+        };
+        const metal = '#252a27', darkMetal = '#161a18', steel = '#73786e', wood = '#75533a', lightWood = '#98704a', glove = '#4d5145';
+        const cycle = clamp(1-(now-shotAt)/Math.max(1,gun.fireRate*.6),0,1);
+        const longGun = !['pistol','launcher'].includes(gun.style);
+        if (longGun) {
+          polygon([[.16,.35],[.28,.22],[.58,.2],[.72,.36],[.68,.58],[.5,.7],[.26,.64]], '#3c443b');
+          polygon([[.24,.44],[.36,.34],[.55,.34],[.63,.45],[.62,.61],[.46,.72],[.3,.67]], glove);
+          polygon([[-1.08,-.18],[-.92,-.27],[-.42,-.23],[-.25,-.09],[-.3,.13],[-.79,.12],[-1.02,.05]], wood);
+        }
+        const bodyTop = gun.style === 'launcher' ? -.34 : -.29;
+        const bodyBottom = gun.style === 'double' ? -.025 : -.045;
+        const muzzleX = gun.style === 'launcher' ? 2.05 : gun.style === 'ptrs' ? 2.2 : gun.style === 'flame' ? 1.82 : gun.style === 'shotgun' || gun.style === 'double' ? 1.8 : 1.52;
+        if (gun.style === 'launcher') {
+          ctx.fillStyle = darkMetal; ctx.fillRect(-unit*.68,-unit*.36,unit*2.75,unit*.23);
+          ctx.fillStyle = '#555b52'; ctx.fillRect(-unit*.68,-unit*.36,unit*2.34,unit*.045);
+          ctx.fillStyle = '#111513'; ctx.fillRect(unit*1.75,-unit*.395,unit*.34,unit*.3);
+          ctx.fillStyle = '#353b35'; ctx.fillRect(unit*.05,-unit*.12,unit*.2,unit*.34);
+          ctx.fillStyle = '#75553b'; ctx.fillRect(-unit*.65,-unit*.12,unit*.28,unit*.28);
+          ctx.fillStyle = steel; ctx.fillRect(unit*.48,-unit*.46,unit*.16,unit*.11);
+        } else if (gun.style === 'flame') {
+          ctx.fillStyle = darkMetal; ctx.fillRect(-unit*.45,-unit*.27,unit*2.1,unit*.15);
+          ctx.fillStyle = '#4b5148'; ctx.fillRect(-unit*.45,-unit*.3,unit*1.72,unit*.045);
+          ctx.fillStyle = '#171b18'; ctx.fillRect(unit*1.53,-unit*.32,unit*.34,unit*.24);
+          ctx.fillStyle = '#8a6040'; ctx.fillRect(-unit*.62,-unit*.19,unit*.28,unit*.35);
+          ctx.strokeStyle = '#796b51'; ctx.lineWidth=unit*.07; ctx.beginPath(); ctx.moveTo(unit*.42,unit*.12); ctx.quadraticCurveTo(unit*.7,unit*.45,unit*.94,unit*.19); ctx.stroke();
+          ctx.fillStyle = '#343e39'; ctx.fillRect(unit*.05,-unit*.04,unit*.18,unit*.31);
+        } else if (gun.style === 'pistol') {
+          ctx.fillStyle = darkMetal; ctx.fillRect(-unit*.32,-unit*.31,unit*1.03,unit*.21);
+          ctx.fillStyle = steel; ctx.fillRect(-unit*.28,-unit*.34,unit*.76,unit*.045);
+          ctx.fillStyle = '#333a35'; ctx.fillRect(-unit*.08,-unit*.1,unit*.2,unit*.32);
+          ctx.fillStyle = wood; ctx.beginPath(); ctx.moveTo(-unit*.08,unit*.08); ctx.lineTo(unit*.12,unit*.1); ctx.lineTo(unit*.27,unit*.51); ctx.lineTo(unit*.02,unit*.49); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#151917'; ctx.fillRect(unit*.5,-unit*.29,unit*.28,unit*.11);
+          ctx.fillStyle = steel; ctx.fillRect(-unit*.16,-unit*.39,unit*.1,unit*.08); ctx.fillRect(unit*.2,-unit*.39,unit*.1,unit*.08);
+        } else {
+          const receiverColor = ['mp40','fg42','mg42','browning','dp','ptrs','type100'].includes(gun.style) ? metal : wood;
+          if (['mp40','fg42','mg42','browning','dp','ptrs','type100'].includes(gun.style)) {
+            ctx.fillStyle = receiverColor; ctx.fillRect(-unit*.36,unit*bodyTop,unit*.98,unit*(bodyBottom-bodyTop));
+          } else {
+            polygon([[-.52,-.25],[-.4,-.32],[.3,-.3],[.58,-.2],[.55,-.04],[-.36,-.03]], receiverColor);
+          }
+          if (['garand','gewehr','carbine','bolt','scoped','arisaka','fg42','stg','bar','shotgun','double'].includes(gun.style)) {
+            polygon([[-.42,-.19],[.47,-.19],[.68,-.12],[.69,-.025],[.22,.015],[.05,.08],[-.38,.045]], gun.style === 'fg42' ? metal : lightWood);
+          }
+          if (gun.style === 'mp40') {
+            ctx.strokeStyle = steel; ctx.lineWidth=unit*.045; ctx.beginPath(); ctx.moveTo(-unit*.38,-unit*.12); ctx.lineTo(-unit*.83,-unit*.03); ctx.lineTo(-unit*.93,unit*.14); ctx.stroke();
+            polygon([[.04,-.02],[.19,-.02],[.13,.41],[-.02,.42]], '#303631');
+            ctx.strokeStyle=steel; ctx.lineWidth=unit*.035; ctx.beginPath(); ctx.moveTo(-unit*.37,-unit*.1); ctx.lineTo(-unit*.82,unit*.02); ctx.lineTo(-unit*.88,unit*.22); ctx.stroke();
+          }
+          if (gun.style === 'thompson') {
+            ctx.fillStyle=steel; ctx.fillRect(unit*.39,-unit*.25,unit*.16,unit*.17);
+            polygon([[-.38,.035],[-.12,.04],[-.14,.38],[-.34,.37]], wood);
+            polygon([[.02,-.08],[.16,-.08],[.18,.39],[.04,.4]], darkMetal);
+            ctx.fillStyle=steel; ctx.fillRect(unit*1.3,-unit*.31,unit*.18,unit*.13);
+          }
+          if (gun.style === 'garand') {
+            ctx.fillStyle=steel; ctx.fillRect(unit*.05,-unit*.37,unit*.055,unit*.1);
+            ctx.fillStyle='#c5a45a'; ctx.fillRect(unit*.035,-unit*.43,unit*.13,unit*.18);
+            ctx.fillStyle=darkMetal; ctx.fillRect(unit*.29,-unit*.32,unit*.2,unit*.055);
+          }
+          if (gun.style === 'bolt' || gun.style === 'scoped' || gun.style === 'arisaka') {
+            ctx.fillStyle=steel; ctx.fillRect(unit*.02,-unit*.35,unit*.075,unit*.09);
+            ctx.beginPath(); ctx.arc(unit*.1,-unit*.17,unit*.075,0,Math.PI*2); ctx.fill();
+            ctx.strokeStyle=steel; ctx.lineWidth=unit*.04; ctx.beginPath(); ctx.moveTo(unit*(.08-cycle*.14),-unit*.15); ctx.lineTo(unit*.2,-unit*.04); ctx.stroke();
+            if(gun.name==='KAR98K'){ctx.fillStyle=darkMetal;ctx.fillRect(unit*.03,-unit*.23,unit*.18,unit*.035);}
+            if(gun.name==='MOSIN-NAGANT'){ctx.fillStyle=steel;ctx.fillRect(unit*.08,-unit*.18,unit*.19,unit*.045);}
+            if(gun.style==='arisaka'){ctx.fillStyle=steel;ctx.fillRect(unit*.33,-unit*.24,unit*.045,unit*.26);}
+          }
+          if (gun.style === 'gewehr' || gun.style === 'fg42' || gun.style === 'stg' || gun.style === 'type100') {
+            polygon([[.02,-.03],[.17,-.025],[.24,.39],[.07,.42]], gun.style === 'stg' ? '#242a26' : metal);
+          }
+          if(gun.style==='gewehr'){
+            polygon([[.13,.04],[.29,.05],[.31,.27],[.16,.26]],darkMetal);
+            ctx.fillStyle=steel;ctx.fillRect(unit*.17,unit*.07,unit*.1,unit*.035);
+          }
+          if (gun.style === 'carbine') {
+            polygon([[-.52,-.19],[-.35,-.27],[.28,-.26],[.48,-.16],[.44,-.04],[-.37,.02]], wood);
+            ctx.fillStyle=metal; ctx.fillRect(unit*.05,-unit*.34,unit*.49,unit*.045);
+          }
+          if (gun.style === 'type100') {
+            polygon([[.06,.02],[.2,.04],[.28,.32],[.17,.36]], '#303631');
+            polygon([[.34,-.16],[.45,-.13],[.42,.19],[.32,.19]],darkMetal);
+            ctx.fillStyle=steel; ctx.fillRect(unit*.41,-unit*.28,unit*.13,unit*.08);
+          }
+          if (gun.style === 'shotgun') {
+            ctx.fillStyle=lightWood; ctx.fillRect(unit*(-.12+cycle*.1),-unit*.17,unit*.57,unit*.14);
+            ctx.fillStyle=metal; ctx.fillRect(unit*.03,-unit*.2,unit*.12,unit*.2);
+            ctx.fillStyle=darkMetal; ctx.fillRect(unit*.44,-unit*.24,unit*1.28,unit*.075);
+          }
+          if (gun.style === 'double') {
+            ctx.fillStyle=darkMetal; ctx.fillRect(unit*.24,-unit*.3,unit*1.5,unit*.065); ctx.fillRect(unit*.24,-unit*.19,unit*1.5,unit*.065);
+            ctx.fillStyle=steel; ctx.fillRect(unit*1.68,-unit*.31,unit*.08,unit*.09); ctx.fillRect(unit*1.68,-unit*.2,unit*.08,unit*.09);
+            ctx.fillStyle=wood; ctx.fillRect(-unit*.13,-unit*.17,unit*.46,unit*.12);
+          }
+          if (gun.style === 'ppsh') {
+            ctx.fillStyle=darkMetal; ctx.beginPath(); ctx.ellipse(unit*.15,unit*.16,unit*.34,unit*.31,0,0,Math.PI*2); ctx.fill();
+            ctx.strokeStyle=steel; ctx.lineWidth=unit*.045; ctx.stroke();
+            for(let hole=0;hole<8;hole++){const a=hole*Math.PI/4;ctx.fillStyle='#111512';ctx.beginPath();ctx.arc(unit*.15+Math.cos(a)*unit*.25,unit*.16+Math.sin(a)*unit*.22,unit*.025,0,Math.PI*2);ctx.fill();}
+            ctx.fillStyle=metal; ctx.fillRect(unit*.35,-unit*.27,unit*.15,unit*.18);
+            for(let port=0;port<6;port++){ctx.fillStyle='#090d0b';ctx.beginPath();ctx.arc(unit*(.53+port*.105),-unit*.225,unit*.026,0,Math.PI*2);ctx.fill();}
+          }
+          if (gun.style === 'stg') {
+            polygon([[.03,.01],[.24,.02],[.31,.36],[.1,.41]], '#262c28');
+            ctx.fillStyle=steel; ctx.fillRect(unit*.34,-unit*.26,unit*.17,unit*.07);
+          }
+          if (gun.style === 'bar') {
+            polygon([[.07,.01],[.24,.04],[.31,.37],[.12,.39]], '#262b26');
+            ctx.fillStyle=darkMetal; ctx.fillRect(unit*.11,-unit*.02,unit*.45,unit*.11);
+            ctx.strokeStyle=steel; ctx.lineWidth=unit*.04; ctx.beginPath(); ctx.moveTo(-unit*.15,-unit*.29); ctx.lineTo(unit*.45,-unit*.29); ctx.lineTo(unit*.5,-unit*.22); ctx.stroke();
+            ctx.strokeStyle=metal; ctx.lineWidth=unit*.04; ctx.beginPath(); ctx.moveTo(unit*.65,unit*.01); ctx.lineTo(unit*.78,unit*.35); ctx.moveTo(unit*.98,unit*.01); ctx.lineTo(unit*1.1,unit*.35); ctx.stroke();
+          }
+          if (gun.style === 'dp') {
+            ctx.fillStyle=darkMetal; ctx.beginPath(); ctx.ellipse(unit*.04,-unit*.35,unit*.38,unit*.14,0,0,Math.PI*2); ctx.fill();
+            ctx.strokeStyle=steel; ctx.lineWidth=unit*.04; ctx.stroke();
+            ctx.strokeStyle=metal; ctx.lineWidth=unit*.045; ctx.beginPath(); ctx.moveTo(unit*.1,unit*.02); ctx.lineTo(unit*.02,unit*.38); ctx.moveTo(unit*.46,unit*.02); ctx.lineTo(unit*.62,unit*.38); ctx.stroke();
+          }
+          if (gun.style === 'mg42' || gun.style === 'browning') {
+            ctx.fillStyle=metal; ctx.fillRect(-unit*.24,-unit*.36,unit*.22,unit*.2);
+            for(let link=0;link<5;link++){ctx.fillStyle='#aa8951';ctx.fillRect(-unit*.36+link*unit*.09,-unit*.1,unit*.06,unit*.09);}
+            ctx.strokeStyle=metal; ctx.lineWidth=unit*.04; ctx.beginPath(); ctx.moveTo(unit*.36,unit*.01); ctx.lineTo(unit*.25,unit*.37); ctx.moveTo(unit*.73,unit*.01); ctx.lineTo(unit*.88,unit*.37); ctx.stroke();
+          }
+          if (gun.style === 'scoped' || gun.style === 'ptrs') {
+            ctx.fillStyle=darkMetal; ctx.fillRect(-unit*.02,-unit*.49,unit*.68,unit*.09);
+            ctx.fillStyle=steel; ctx.fillRect(unit*.03,-unit*.52,unit*.1,unit*.14); ctx.fillRect(unit*.55,-unit*.52,unit*.1,unit*.14);
+            ctx.fillStyle='#111512'; ctx.fillRect(unit*.63,-unit*.51,unit*.12,unit*.13);
+          }
+          if (gun.style === 'ptrs') {
+            ctx.strokeStyle=metal; ctx.lineWidth=unit*.055; ctx.beginPath(); ctx.moveTo(unit*.5,unit*.03); ctx.lineTo(unit*.43,unit*.48); ctx.moveTo(unit*.82,unit*.03); ctx.lineTo(unit*.96,unit*.48); ctx.stroke();
+          }
+          if (gun.style === 'arisaka') {
+            ctx.strokeStyle=steel; ctx.lineWidth=unit*.035; ctx.beginPath(); ctx.moveTo(unit*.16,unit*.12); ctx.lineTo(unit*1.55,unit*.12); ctx.stroke();
+          }
+          if (gun.style !== 'double' && gun.style !== 'shotgun' && gun.style !== 'launcher' && gun.style !== 'flame') {
+            const barrelStart = gun.style === 'ptrs' ? .34 : .42;
+            const barrelEnd = gun.style === 'ptrs' ? 2.07 : gun.style === 'mg42' ? 1.84 : gun.style === 'browning' ? 1.72 : 1.52;
+            ctx.fillStyle=darkMetal; ctx.fillRect(unit*barrelStart,-unit*.26,unit*(barrelEnd-barrelStart),unit*.075);
+            ctx.fillStyle=steel; ctx.fillRect(unit*(barrelEnd-.12),-unit*.29,unit*.15,unit*.14);
+          }
+          if (gun.style !== 'ppsh' && gun.style !== 'dp' && gun.style !== 'double' && gun.style !== 'shotgun' && gun.style !== 'bar') {
+            ctx.fillStyle=darkMetal; ctx.fillRect(unit*.08,unit*.005,unit*.15,unit*.32);
+          }
+          if (gun.style === 'mp40' || gun.style === 'gewehr' || gun.style === 'stg' || gun.style === 'fg42' || gun.style === 'bar' || gun.style === 'type100') {
+            polygon([[.17,.02],[.34,.04],[.31,.42],[.16,.39]], '#252b27');
+          }
+          ctx.fillStyle=steel; ctx.fillRect(unit*.24,-unit*.38,unit*.035,unit*.12); ctx.fillRect(unit*.39,-unit*.38,unit*.035,unit*.12);
+        }
+        if (gun.style === 'flame' && muzzle > 0) {
+          ctx.globalAlpha=muzzle; ctx.fillStyle='#ffb34a'; ctx.beginPath(); ctx.moveTo(unit*1.78,-unit*.3); ctx.lineTo(unit*2.35,-unit*.17); ctx.lineTo(unit*1.85,-unit*.06); ctx.lineTo(unit*2.02,-unit*.18); ctx.closePath(); ctx.fill();
+        } else if (muzzle > 0) {
+          ctx.globalAlpha=muzzle; ctx.fillStyle='#f6d78a'; ctx.beginPath(); ctx.moveTo(unit*(muzzleX-.1),-unit*.34); ctx.lineTo(unit*(muzzleX+.18),-unit*.2); ctx.lineTo(unit*(muzzleX-.02),-unit*.08); ctx.lineTo(unit*(muzzleX+.01),-unit*.23); ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+        if (aimAmount > .65) {
+          const sightY = height * .48;
+          ctx.strokeStyle = 'rgba(230,225,202,.8)'; ctx.lineWidth = Math.max(1,width/1200);
+          ctx.beginPath(); ctx.moveTo(width/2-9,sightY+4); ctx.lineTo(width/2-9,sightY-5); ctx.lineTo(width/2+9,sightY-5); ctx.lineTo(width/2+9,sightY+4); ctx.stroke();
+          ctx.fillStyle = 'rgba(230,225,202,.8)'; ctx.fillRect(width/2-1,sightY-2,2,2);
+        }
+      }
+      function render() {
+        if (window.game3d) { window.game3d.render(); return; }
+        castWorld(); drawWorldObjects(); drawWeapon();
+        if (damageFlash > 0) { ctx.fillStyle = `rgba(180,35,22,${damageFlash * .22})`; ctx.fillRect(0,0,width,height); }
+      }
+      function canSee(target) {
+        const d = distance(player,target); const a = Math.atan2(target.y-player.y,target.x-player.x);
+        return rayDistance(a,d+.05).distance >= d-.12;
+      }
+      function fire() {
+        const now = performance.now(), gun = guns[gunIndex];
+        const fireRate = gun.fireRate * (perkSet.has('doubletap') ? .72 : 1);
+        if (!gameStarted || gameOver || reloadUntil > now || now-shotAt < fireRate) return;
+        if (gun.mag <= 0) { showToast('EMPTY / PRESS R TO RELOAD'); return; }
+        gun.mag--; shotAt=now; recoil=gun.kick || 14; muzzle=.95; shotSide=1-shotSide; playSound('fire');
+        const spread = gun.spread * (aimAmount ? .42 : 1);
+        const aim = player.angle + rand(-spread,spread);
+        const hit = window.game3d?.shoot() || null;
+        let target = hit?.zombie || null, best = 1;
+        if (!window.game3d) {
+          for (const z of zombies) {
+            const d = distance(player,z); if (d > 10) continue;
+            const a = Math.atan2(z.y-player.y,z.x-player.x);
+            const diff = Math.abs(Math.atan2(Math.sin(a-aim),Math.cos(a-aim)));
+            const tolerance = Math.atan2(.32,d);
+            if (diff < tolerance && Math.abs(player.pitch) < Math.atan2(.48,d) && diff < best && canSee(z)) { target=z; best=diff; }
+          }
+        }
+        if (target) {
+          const damage = gun.damage * (hit?.headshot ? 3.5 : 1) * (perkSet.has('eye') ? 1.4 : 1) * (perkSet.has('doubletap') ? 1.25 : 1);
+          target.health -= damage; target.hurtUntil=now+100; player.points += 10; playSound('hit');
+          if (target.health <= 0) { zombies = zombies.filter(z=>z!==target); player.points += 90; updateHUD(); playSound('kill'); showToast(`${hit?.headshot?'HEADSHOT  ·  ':''}+100 SALVAGE`); }
+        }
+        updateHUD();
+      }
+      function reload() {
+        const gun = guns[gunIndex], now = performance.now();
+        if (reloadUntil > now || gun.mag === gun.capacity || gun.reserve <= 0) return;
+        reloadUntil = now + gun.reload * 1000 * (perkSet.has('hands') ? .55 : perkSet.has('speedcola') ? .68 : 1);
+        reloadStartedAt = now;
+        reloadDuration = reloadUntil - now;
+        playSound('reload'); showToast('RELOADING');
+        setTimeout(() => {
+          if (gameOver) return;
+          const amount = Math.min(gun.capacity-gun.mag, gun.reserve); gun.mag += amount; gun.reserve -= amount; reloadUntil=0; reloadDuration=0; updateHUD(); playSound(gun.style==='garand'?'ping':'buy'); showToast('READY');
+        }, reloadUntil-now);
+      }
+      function showToast(message) {
+        toastEl.textContent=message; toastEl.classList.add('show'); toastTimer=1.4;
+      }
+      function nearThing() {
+        let closest=null, d=Infinity;
+        for (const door of doors) if (!door.open) { const next=distance(player,door); if (next<d) {closest={...door,kind:'door',ref:door};d=next;} }
+        const db=distance(player,barrier); if (db<d) {closest={kind:'barrier',ref:barrier};d=db;}
+        for (const station of stations) { const next=distance(player,station); if(next<d){closest={...station,kind:station.kind,ref:station};d=next;} }
+        return d<1.65 ? closest : null;
+      }
+      function interact() {
+        if (!gameStarted || gameOver) return;
+        const thing=nearThing(); if (!thing) return;
+        if (thing.kind==='power') {
+          if(powerOn) return showToast('FACILITY POWER ONLINE');
+          powerOn=true; playSound('door'); updateHUD(); showToast('FACILITY POWER RESTORED'); return;
+        }
+        if (thing.kind==='door') {
+          if(!powerOn) return showToast('RESTORE FACILITY POWER FIRST');
+          if (player.points<thing.cost) return showToast(`NEED ${thing.cost} SALVAGE`);
+          player.points-=thing.cost; thing.ref.open=true; map[thing.ref.mapY][thing.ref.mapX]=0; updateHUD(); playSound('door'); showToast(thing.ref === doors[0] ? 'ANNEX UNLOCKED' : 'EAST WING UNLOCKED'); return;
+        }
+        if (thing.kind==='barrier') {
+          const b=thing.ref, now=performance.now();
+          if(b.health>=b.max) return showToast('BARRICADE SECURE');
+          if(now<b.nextRepair) return;
+          if(player.points<50) return showToast('NEED 50 SALVAGE');
+          player.points-=50; b.health=Math.min(b.max,b.health+1); b.nextRepair=now+250; updateHUD(); showToast('BARRICADE REPAIRED'); return;
+        }
+        if (thing.kind==='box') {
+          const box=thing.ref, now=performance.now();
+          if(box.rolling) return showToast('BOX IS SPINNING');
+          if(now<box.availableAt) return showToast('BOX IS RESTOCKING');
+          if(player.points<box.cost) return showToast(`NEED ${box.cost} SALVAGE`);
+          player.points-=box.cost; box.rolling=true; box.active=false; box.availableAt=now+22000;
+          updateHUD(); playSound('box'); showToast('MYSTERY BOX: SPINNING');
+          setTimeout(()=>{
+            if(gameOver) return;
+            const rewardIndex=Math.floor(Math.random()*guns.length), reward=guns[rewardIndex];
+            ownedGuns.add(rewardIndex); reward.reserve+=reward.capacity;
+            equipWeapon(rewardIndex); box.rolling=false;
+            updateHUD(); playSound('reveal'); showToast(`THE BOX: ${reward.name}`);
+          },1700);
+          return;
+        }
+        if (thing.kind==='weapon') {
+          const index=thing.index, gun=guns[index];
+          if(!ownedGuns.has(index)) {
+            if(player.points<gun.cost) return showToast(`NEED ${gun.cost} SALVAGE`);
+            player.points-=gun.cost; ownedGuns.add(index); equipWeapon(index); updateHUD(); playSound('buy'); showToast(`${gun.name} ACQUIRED`); return;
+          }
+          equipWeapon(index); updateHUD(); playSound('buy'); showToast(`${gun.name} EQUIPPED`); return;
+        }
+        if (thing.kind==='perk') {
+          if(!powerOn) return showToast('RESTORE FACILITY POWER FIRST');
+          if(perkSet.has(thing.id)) return showToast(`${thing.label} ACTIVE`);
+          if(player.points<thing.cost) return showToast(`NEED ${thing.cost} SALVAGE`);
+          player.points-=thing.cost; perkSet.add(thing.id);
+          if(thing.id==='lung' || thing.id==='revive') player.health=Math.min(player.maxHealth,player.health+2);
+          if(thing.id==='juggernog'){player.maxHealth+=2;player.health=Math.min(player.maxHealth,player.health+2);}
+          if(thing.id==='staminup') player.speed*=1.35;
+          updateHUD(); playSound('perk'); showToast(`${thing.label} ACQUIRED`);
+        }
+      }
+      function browseWeapon() {
+        const thing = nearThing();
+        if (!thing || thing.kind !== 'weapon' || !thing.ref.options) return;
+        const current = thing.ref.options.indexOf(thing.ref.index);
+        thing.ref.index = thing.ref.options[(current + 1) % thing.ref.options.length];
+        showToast(guns[thing.ref.index].name);
+        updatePrompt();
+      }
+      function makeZombie() {
+        const regions=[{minX:1.4,maxX:7.2}];
+        if(doors[0].open) regions.push({minX:9.2,maxX:15.2});
+        if(doors[1].open) regions.push({minX:17.2,maxX:22.1});
+        const region=regions[Math.floor(Math.random()*regions.length)];
+        const crawler=Math.random()<.28;
+        let x,y,tries=0;
+        do {
+          x=rand(region.minX,region.maxX); y=rand(1.4,16.2);
+          tries++;
+        } while((distance(player,{x,y})<4 || solid(x,y)) && tries<40);
+        const maxHealth=100+(round-1)*18;
+        return {kind:'zombie',crawler,x,y,health:crawler?Math.round(maxHealth*.72):maxHealth,maxHealth:crawler?Math.round(maxHealth*.72):maxHealth,speed:(crawler?rand(.36,.52):rand(.55,.78))+round*.025,attackAt:0,step:Math.random()*6,hurtUntil:0};
+      }
+      function tickZombies(dt,now) {
+        if(spawnLeft>0){
+          spawnClock-=dt;
+          if(spawnClock<=0 && zombies.length<9){ zombies.push(makeZombie()); spawnLeft--; spawnClock=rand(.8,1.7); }
+        }
+        for(const z of zombies){
+          const d=distance(player,z);
+          if(d<.72){
+            if(now>z.attackAt){
+              z.attackAt=now+(perkSet.has('lung')?1400:1000); player.health=Math.max(0,player.health-1); player.hitAt=now; damageFlash=.9; updateHUD(); playSound('zombie');
+              if(player.health<=0){ gameOver=true; showGameOver(); }
+            }
+            continue;
+          }
+          const angle=Math.atan2(player.y-z.y,player.x-z.x);
+          const vx=Math.cos(angle)*z.speed*dt, vy=Math.sin(angle)*z.speed*dt;
+          moveEntity(z,vx,vy,.19); z.step+=dt;
+          if(Math.abs(vx)+Math.abs(vy)<.001){
+            moveEntity(z,Math.cos(angle+Math.PI/2)*z.speed*dt,Math.sin(angle+Math.PI/2)*z.speed*dt,.19);
+          }
+        }
+        if(spawnLeft===0 && zombies.length===0){
+          roundPause+=dt;
+          if(roundPause>3){ round++; spawnLeft=4+round*2; spawnClock=1.2; roundPause=0; player.points+=100; updateHUD(); playSound('wave'); showToast(`WAVE ${String(round).padStart(2,'0')} INCOMING`); }
+        }
+      }
+      function updatePrompt(){
+        const t=nearThing();
+        if(!t){promptEl.classList.remove('show');return;}
+        let text='';
+        if(t.kind==='door') text=`[E] UNLOCK ANNEX  ·  ${t.cost} SALVAGE`;
+        if(t.kind==='power') text=powerOn?'FACILITY POWER ONLINE':'[E] ACTIVATE POWER SWITCH';
+        if(t.kind==='barrier') text=barrier.health>=barrier.max?'BARRICADE SECURE':`[E] REPAIR BARRICADE  ·  50 SALVAGE  ·  ${barrier.health}/${barrier.max}`;
+        if(t.kind==='weapon') text=`[Q] NEXT  ·  [E] ${ownedGuns.has(t.index)?'EQUIP':'BUY'} ${guns[t.index].name}  ·  ${guns[t.index].cost||'OWNED'}`;
+        if(t.kind==='box') text=t.rolling?'MYSTERY BOX SPINNING':performance.now()<t.availableAt?'MYSTERY BOX RESTOCKING':`[E] MYSTERY BOX  ·  ${t.cost} SALVAGE`;
+        if(t.kind==='perk') text=`[E] ${perkSet.has(t.id)?'ACTIVE':`BUY ${t.label}`}  ·  ${perkSet.has(t.id)?'READY':`${t.cost} SALVAGE`}`;
+        promptEl.textContent=text; promptEl.classList.add('show');
+      }
+      function updateHUD(){
+        document.getElementById('round').textContent=String(round).padStart(2,'0');
+        document.getElementById('remaining').textContent=`${zombies.length+spawnLeft} HOSTILES`;
+        document.getElementById('points').textContent=String(player.points).padStart(4,'0');
+        document.getElementById('ammo').innerHTML=`${guns[gunIndex].mag} <small>/ ${guns[gunIndex].reserve}</small>`;
+        document.getElementById('gunname').textContent=gunIndex===21?'DUAL M1911':guns[gunIndex].name;
+        document.getElementById('health').innerHTML=Array.from({length:player.maxHealth},(_,i)=>`<i class="${i<player.health?'on':''}"></i>`).join('');
+        document.getElementById('objective').textContent=!powerOn?'RESTORE FACILITY POWER':doors[1].open?'HOLD THE EAST WING':doors[0].open?'HOLD THE ANNEX  /  UNLOCK EAST WING':'HOLD THE ROOM  /  UNLOCK ANNEX';
+      }
+      function showMenuScreen(id){
+        document.querySelectorAll('.menu-screen').forEach(screen=>screen.classList.toggle('active',screen.id===id));
+        overlay.classList.remove('hidden');
+      }
+      function updateCustomMapChoice(){
+        const choice=document.getElementById('customMapChoice');
+        choice.disabled=!customMap;
+        choice.querySelector('strong').textContent=customMap?.name||'CUSTOM SITE';
+        choice.querySelector('small').textContent=customMap?'Built in Map Maker':'Build a site in Map Maker';
+      }
+      function paintEditorCell(x,y){
+        if(x<=0||y<=0||x>=MAP_WIDTH-1||y>=MAP_HEIGHT-1||RESERVED_TILES.has(`${x},${y}`)) return;
+        if(editorTool==='spawn'){
+          editorSpawn={x:x+.5,y:y+.5}; editorGrid[y][x]=0;
+        } else {
+          editorGrid[y][x]=editorTool==='wall'?1:editorTool==='barrier'?3:0;
+          if(Math.floor(editorSpawn.x)===x&&Math.floor(editorSpawn.y)===y&&editorGrid[y][x]!==0) editorGrid[y][x]=0;
+        }
+        const cell=document.querySelector(`.map-cell[data-x="${x}"][data-y="${y}"]`);
+        if(cell){cell.classList.toggle('wall',editorGrid[y][x]===1);cell.classList.toggle('barrier',editorGrid[y][x]===3);cell.classList.toggle('spawn',Math.floor(editorSpawn.x)===x&&Math.floor(editorSpawn.y)===y);}
+      }
+      function renderEditorGrid(){
+        const grid=document.getElementById('mapEditorGrid');
+        grid.replaceChildren();
+        for(let y=0;y<MAP_HEIGHT;y++) for(let x=0;x<MAP_WIDTH;x++){
+          const cell=document.createElement('button');
+          cell.type='button'; cell.className='map-cell'; cell.dataset.x=x; cell.dataset.y=y;
+          if(editorGrid[y][x]===1) cell.classList.add('wall');
+          if(editorGrid[y][x]===2) cell.classList.add('door');
+          if(editorGrid[y][x]===3) cell.classList.add('barrier');
+          if(Math.floor(editorSpawn.x)===x&&Math.floor(editorSpawn.y)===y) cell.classList.add('spawn');
+          cell.setAttribute('aria-label',`Tile ${x+1}, ${y+1}`);
+          cell.addEventListener('pointerdown',event=>{event.preventDefault();editorPainting=true;paintEditorCell(x,y);});
+          cell.addEventListener('pointerenter',()=>{if(editorPainting)paintEditorCell(x,y);});
+          grid.append(cell);
+        }
+      }
+      document.addEventListener('pointerup',()=>editorPainting=false);
+      document.querySelectorAll('[data-nav]').forEach(button=>button.addEventListener('click',()=>{
+        const destination=button.dataset.nav;
+        if(destination==='editor'){
+          editorGrid=customMap?customMap.grid.map(row=>row.slice()):createMapGrid('bunker');
+          editorSpawn=customMap?.spawn||{x:4.1,y:6.4};
+          document.getElementById('editorName').value=customMap?.name||'MY CUSTOM SITE';
+          renderEditorGrid();
+        }
+        showMenuScreen(destination==='single'?'mapScreen':destination==='lan'?'lanScreen':destination==='editor'?'editorScreen':'titleScreen');
+      }));
+      document.querySelectorAll('.map-choice').forEach(button=>button.addEventListener('click',()=>{
+        if(button.disabled) return;
+        selectedMapId=button.dataset.map;
+        document.querySelectorAll('.map-choice').forEach(choice=>{
+          const selected=choice===button;
+          choice.classList.toggle('selected',selected);
+          choice.setAttribute('aria-pressed',String(selected));
+        });
+      }));
+      document.querySelectorAll('[data-editor-tool]').forEach(button=>button.addEventListener('click',()=>{
+        editorTool=button.dataset.editorTool;
+        document.querySelectorAll('[data-editor-tool]').forEach(tool=>tool.classList.toggle('selected',tool===button));
+      }));
+      document.getElementById('saveMap').addEventListener('click',()=>{
+        customMap={name:document.getElementById('editorName').value.trim()||'CUSTOM SITE',grid:editorGrid.map(row=>row.slice()),spawn:{...editorSpawn}};
+        localStorage.setItem('lastLight.customMap',JSON.stringify(customMap));
+        selectedMapId='custom'; updateCustomMapChoice();
+        document.querySelectorAll('.map-choice').forEach(choice=>{
+          const selected=choice.dataset.map==='custom'; choice.classList.toggle('selected',selected); choice.setAttribute('aria-pressed',String(selected));
+        });
+        document.getElementById('editorStatus').textContent='SITE SAVED';
+        showMenuScreen('mapScreen');
+      });
+      updateCustomMapChoice();
+      function showGameOver(){
+        overlay.classList.remove('hidden'); overlay.innerHTML=`<div class="intro"><div class="eyebrow">SIGNAL LOST / SITE 09</div><h1>LAST<span>LIGHT</span></h1><p>CONTAINMENT FAILED AT WAVE ${String(round).padStart(2,'0')}. SALVAGE RECOVERED: ${player.points}.</p><div class="start"><button id="restart">REDEPLOY&nbsp; ↗</button><div class="subhint">THE NIGHT SHIFT CONTINUES</div></div></div>`;
+        document.getElementById('restart').onclick=()=>location.reload();
+      }
+      function loop(now){
+        const dt=Math.min(.04,(now-lastFrame)/1000); lastFrame=now;
+        if(gameStarted&&!gameOver){
+          aimAmount += ((aimToggle || rightAim || touchMove.has('ads') ? 1 : 0) - aimAmount) * Math.min(1,dt*12);
+          let forward=0,strafe=0;
+          if(keys.has('w')||keys.has('arrowup')||touchMove.has('forward')) forward++;
+          if(keys.has('s')||keys.has('arrowdown')||touchMove.has('back')) forward--;
+          if(keys.has('d')||touchMove.has('right')) strafe++;
+          if(keys.has('a')||touchMove.has('left')) strafe--;
+          movementAmount += ((forward || strafe ? 1 : 0) - movementAmount) * Math.min(1,dt*8);
+          const speed=player.speed*dt*(keys.has('shift')?1.4:1);
+          const dx=(Math.cos(player.angle)*forward+Math.cos(player.angle+Math.PI/2)*strafe)*speed;
+          const dy=(Math.sin(player.angle)*forward+Math.sin(player.angle+Math.PI/2)*strafe)*speed;
+          moveEntity(player,dx,dy,.22);
+          if(mouseDown || touchMove.has('fire')) fire();
+          for(const station of stations) if(station.kind==='box'&&!station.rolling) station.active=now>=station.availableAt;
+          tickZombies(dt,now); updatePrompt();
+        }
+        recoil=Math.max(0,recoil-dt*70); muzzle=Math.max(0,muzzle-dt*5); damageFlash=Math.max(0,damageFlash-dt*1.5);
+        hud.classList.toggle('aiming', aimAmount > .65);
+        if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)toastEl.classList.remove('show');}
+        render(); requestAnimationFrame(loop);
+      }
+      const touchMove=new Set();
+      document.querySelectorAll('.map-choice').forEach(button=>{
+        button.addEventListener('click',()=>{
+          selectedMapId=button.dataset.map;
+          document.querySelectorAll('.map-choice').forEach(choice=>{
+            const selected=choice===button;
+            choice.classList.toggle('selected',selected);
+            choice.setAttribute('aria-pressed',String(selected));
+          });
+        });
+      });
+      document.getElementById('start').addEventListener('click',()=>{
+        if(gameOver){location.reload();return;}
+        map.splice(0,map.length,...createMapGrid(selectedMapId));
+        doors.forEach(door=>door.open=false);
+        barrier.health=barrier.max;
+        player.x=4.1; player.y=6.4; player.angle=.45; player.pitch=0;
+        player.health=player.maxHealth; player.points=500; player.speed=2.65;
+        powerOn=false; zombies.length=0; round=1; spawnLeft=5; spawnClock=1.3; roundPause=0;
+        for(const station of stations) if(station.kind==='box'){station.active=true;station.rolling=false;station.availableAt=0;}
+        window.rebuildGameWorld?.();
+        const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+        if(AudioContextClass){audioContext ||= new AudioContextClass();audioContext.resume();}
+        playSound('wave');
+        gameStarted=true; overlay.classList.add('hidden'); hud.style.display='block'; updateHUD(); canvas.requestPointerLock?.();
+      });
+      document.addEventListener('pointerlockchange',()=>{});
+      document.addEventListener('mousemove',e=>{if(gameStarted&&document.pointerLockElement===canvas){player.angle+=e.movementX*.0022;player.pitch=clamp(player.pitch-e.movementY*.002,-.48,.48);}});
+      canvas.addEventListener('click',()=>{if(gameStarted&&document.pointerLockElement!==canvas)canvas.requestPointerLock?.();else if(gameStarted)fire();});
+      document.addEventListener('contextmenu',e=>e.preventDefault());
+      document.addEventListener('mousedown',e=>{if(e.button===0&&gameStarted)mouseDown=true;if(e.button===2&&gameStarted)rightAim=true;});
+      document.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)rightAim=false;});
+      document.addEventListener('keydown',e=>{
+        const key=e.key.toLowerCase(); keys.add(key);
+        if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(key))e.preventDefault();
+        if(key==='e')interact(); if(key==='q')browseWeapon(); if(key==='r')reload(); if(key===' ')fire(); if(key==='f'&&!e.repeat)aimToggle=!aimToggle;
+      });
+      document.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+      let lastTouchX=null;
+      let lastTouchY=null;
+      canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){lastTouchX=e.clientX;lastTouchY=e.clientY;if(gameStarted)fire();}});
+      canvas.addEventListener('pointermove',e=>{if(e.pointerType==='touch'&&lastTouchX!==null){player.angle+=(e.clientX-lastTouchX)*.008;player.pitch=clamp(player.pitch-(e.clientY-lastTouchY)*.006,-.48,.48);lastTouchX=e.clientX;lastTouchY=e.clientY;}});
+      canvas.addEventListener('pointerup',()=>{lastTouchX=null;lastTouchY=null;});
+      document.querySelectorAll('.pad button').forEach(button=>{
+        const action=button.dataset.move;
+        button.addEventListener('pointerdown',e=>{e.preventDefault();touchMove.add(action);button.setPointerCapture(e.pointerId);});
+        ['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,()=>touchMove.delete(action)));
+      });
+      document.querySelectorAll('.touch-actions button').forEach(button=>{
+        button.addEventListener('pointerdown',e=>{e.preventDefault();const action=button.dataset.action;if(action==='fire'){touchMove.add('fire');fire();}if(action==='reload')reload();if(action==='use')interact();if(action==='next')browseWeapon();if(action==='ads'){if(touchMove.has('ads'))touchMove.delete('ads');else touchMove.add('ads');}});
+        ['pointerup','pointercancel','pointerleave'].forEach(name=>button.addEventListener(name,()=>{if(button.dataset.action==='fire')touchMove.delete('fire');}));
+      });
+      window.gameBridge = {
+        map, doors, barrier, player, guns, stations, zombies, rayDistance,
+        get gunIndex(){return gunIndex;}, get aimAmount(){return aimAmount;},
+        get recoil(){return recoil;}, get muzzle(){return muzzle;},
+        get movementAmount(){return movementAmount;}, get powerOn(){return powerOn;},
+        get shotSide(){return shotSide;}
+      };
+      updateHUD(); requestAnimationFrame(loop);
+    })();
+  </script>
+  <script type="module">
+    import { createWorld3D } from './game3d.js';
+    try {
+      window.game3d = createWorld3D(window.gameBridge);
+      document.getElementById('game').style.opacity = '0';
+    } catch (error) {
+      console.error('3D scene failed to initialize:', error);
+      document.getElementById('world3d').remove();
+      document.getElementById('game').style.opacity = '1';
+    }
+  </script>
+</body>
+</html>
